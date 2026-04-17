@@ -1,8 +1,32 @@
 body {
+  margin: 0;
+  font-family: Arial;
   background: #111;
   color: white;
   text-align: center;
-  font-family: Arial;
+}
+
+/* MENU */
+#menu {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#menu h1 {
+  font-size: 48px;
+}
+
+#menu button {
+  padding: 15px 30px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* GAME */
+.hidden {
+  display: none;
 }
 
 canvas {
