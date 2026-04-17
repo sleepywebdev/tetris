@@ -1,0 +1,16 @@
+body {
+  background: #111;
+  color: white;
+  text-align: center;
+  font-family: Arial;
+}
+
+canvas {
+  background: black;
+  display: block;
+  margin: 20px auto;
+}
+
+.ui {
+  margin-top: 10px;
+}
