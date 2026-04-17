@@ -1,17 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Tetris Clean</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Tetris</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<canvas id="game" width="300" height="540"></canvas>
+<!-- 🎮 MENU -->
+<div id="menu">
+  <h1>TETRIS</h1>
+  <button id="startBtn">Start Game</button>
+</div>
 
-<div class="ui">
-  <button id="restart">Restart</button>
-  <button id="mute">🔊</button>
+<!-- 🕹 GAME -->
+<div id="gameContainer" class="hidden">
+  <canvas id="game" width="420" height="540"></canvas>
+
+  <div class="ui">
+    <button id="restart">Restart</button>
+    <button id="mute">🔊</button>
+  </div>
 </div>
 
 <script src="main.js"></script>
