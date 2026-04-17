@@ -1,28 +1,302 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Tetris</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Tetris Clean</title>
+
+<style>
+body {
+  margin: 0;
+  background: #111;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+
+#menu {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+button {
+  padding: 12px 18px;
+  font-size: 16px;
+  cursor: pointer;
+  margin: 5px;
+}
+
+.hidden { display: none; }
+
+canvas {
+  background: black;
+  display: block;
+  margin: 10px auto;
+}
+</style>
 </head>
+
 <body>
 
-<!-- 🎮 MENU -->
+<!-- MENU -->
 <div id="menu">
   <h1>TETRIS</h1>
-  <button id="startBtn">Start Game</button>
+  <button id="start">Start Game</button>
 </div>
 
-<!-- 🕹 GAME -->
-<div id="gameContainer" class="hidden">
-  <canvas id="game" width="420" height="540"></canvas>
+<!-- GAME -->
+<div id="gameArea" class="hidden">
+  <canvas id="c" width="420" height="540"></canvas>
 
-  <div class="ui">
+  <div>
     <button id="restart">Restart</button>
-    <button id="mute">🔊</button>
   </div>
 </div>
 
-<script src="main.js"></script>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+const COLS = 10;
+const ROWS = 18;
+const SIZE = 30;
+
+let running = false;
+
+// --- SHAPES ---
+const SHAPES = [
+[[1,1,1],[0,1,0]],
+[[2,2],[2,2]],
+[[0,3,0],[0,3,0],[0,3,3]],
+[[0,4,0],[0,4,0],[4,4,0]],
+[[5,5,0],[0,5,5],[0,0,0]],
+[[0,6,6],[6,6,0],[0,0,0]],
+[[7,7,7,7]]
+];
+
+const COLORS = [null,"#ff0d72","#0dc2ff","#0dff72","#f538ff","#ff8e0d","#ffe138","#3877ff"];
+
+// --- STATE ---
+let arena, player, nextPiece, holdPiece;
+let canHold = true;
+let particles = [];
+let loop;
+
+// --- INIT ---
+function createMatrix(w,h){
+  return Array.from({length:h},()=>Array(w).fill(0));
+}
+
+function reset(){
+  arena = createMatrix(COLS,ROWS);
+  player = {x:3,y:0,shape:rand()};
+  nextPiece = rand();
+  holdPiece = null;
+  canHold = true;
+}
+
+function rand(){
+  return JSON.parse(JSON.stringify(SHAPES[Math.random()*SHAPES.length|0]));
+}
+
+// --- COLLISION ---
+function collide(p = player){
+  return p.shape.some((r,y)=>
+    r.some((v,x)=>{
+      return v && (arena[y+p.y]?.[x+p.x]);
+    })
+  );
+}
+
+// --- MERGE ---
+function merge(){
+  player.shape.forEach((r,y)=>{
+    r.forEach((v,x)=>{
+      if(v) arena[y+player.y][x+player.x]=v;
+    });
+  });
+}
+
+// --- CLEAR LINES ---
+function clearLines(){
+  outer: for(let y=ROWS-1;y>=0;y--){
+    for(let x=0;x<COLS;x++){
+      if(!arena[y][x]) continue outer;
+    }
+
+    arena.splice(y,1);
+    arena.unshift(Array(COLS).fill(0));
+    spawnParticles(y);
+    y++;
+  }
+}
+
+// --- PARTICLES ---
+function spawnParticles(y){
+  for(let i=0;i<20;i++){
+    particles.push({
+      x: Math.random()*COLS*SIZE,
+      y: y*SIZE,
+      vx:(Math.random()-0.5)*4,
+      vy:Math.random()*-4,
+      life:30
+    });
+  }
+}
+
+// --- GHOST ---
+function ghost(){
+  let g = JSON.parse(JSON.stringify(player));
+  while(!collide(g)) g.y++;
+  g.y--;
+  draw(g.shape,g,0.25);
+}
+
+// --- DRAW ---
+function draw(shape,offset,a=1){
+  ctx.globalAlpha=a;
+  shape.forEach((r,y)=>{
+    r.forEach((v,x)=>{
+      if(v){
+        ctx.fillStyle=COLORS[v];
+        ctx.fillRect((x+offset.x)*SIZE,(y+offset.y)*SIZE,SIZE,SIZE);
+      }
+    });
+  });
+  ctx.globalAlpha=1;
+}
+
+// --- GRID ---
+function grid(){
+  ctx.strokeStyle="rgba(255,255,255,0.05)";
+  for(let x=0;x<=COLS;x++){
+    ctx.beginPath();
+    ctx.moveTo(x*SIZE,0);
+    ctx.lineTo(x*SIZE,ROWS*SIZE);
+    ctx.stroke();
+  }
+  for(let y=0;y<=ROWS;y++){
+    ctx.beginPath();
+    ctx.moveTo(0,y*SIZE);
+    ctx.lineTo(COLS*SIZE,y*SIZE);
+    ctx.stroke();
+  }
+}
+
+// --- HOLD ---
+function hold(){
+  if(!canHold) return;
+
+  if(holdPiece){
+    [player.shape,holdPiece]=[holdPiece,player.shape];
+  } else {
+    holdPiece = player.shape;
+    player.shape = nextPiece;
+    nextPiece = rand();
+  }
+
+  player.x=3;
+  player.y=0;
+  canHold=false;
+}
+
+// --- UPDATE ---
+function update(){
+  player.y++;
+
+  if(collide()){
+    player.y--;
+    merge();
+    clearLines();
+
+    player.shape = nextPiece;
+    nextPiece = rand();
+    canHold=true;
+
+    if(collide()){
+      reset();
+    }
+  }
+
+  save();
+  render();
+}
+
+// --- RENDER ---
+function render(){
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  grid();
+  draw(arena,{x:0,y:0});
+  ghost();
+  draw(player.shape,player);
+
+  drawParticles();
+}
+
+// --- PARTICLES DRAW ---
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.fillStyle="white";
+    ctx.fillRect(p.x,p.y,2,2);
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life--;
+  });
+
+  particles = particles.filter(p=>p.life>0);
+}
+
+// --- SAVE / LOAD ---
+function save(){
+  localStorage.setItem("tetris",JSON.stringify({
+    arena,player,nextPiece,holdPiece
+  }));
+}
+
+function load(){
+  let s = localStorage.getItem("tetris");
+  if(s){
+    let d = JSON.parse(s);
+    arena = d.arena;
+    player = d.player;
+    nextPiece = d.nextPiece;
+    holdPiece = d.holdPiece;
+  }
+}
+
+// --- INPUT ---
+document.addEventListener("keydown",e=>{
+  if(!running) return;
+
+  if(e.key==="ArrowLeft") player.x--;
+  if(e.key==="ArrowRight") player.x++;
+  if(e.key==="ArrowDown") player.y++;
+  if(e.key==="Shift") hold();
+});
+
+// --- MENU ---
+document.getElementById("start").onclick=()=>{
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("gameArea").classList.remove("hidden");
+
+  reset();
+  load();
+
+  running=true;
+  loop=setInterval(update,500);
+};
+
+// --- RESTART ---
+document.getElementById("restart").onclick=()=>{
+  reset();
+};
+
+reset();
+</script>
+
 </body>
 </html>
